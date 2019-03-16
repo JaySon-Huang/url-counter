@@ -125,9 +125,9 @@ if __name__ == '__main__':
     # parse args
     import argparse
     parser = argparse.ArgumentParser(description='URL counters')
-    parser.add_argument('--filename',
+    parser.add_argument('--filename', required=True,
                         help='url file to process')
-    parser.add_argument('--split', type=int,
+    parser.add_argument('--split', type=int, default=10,
                         help='split size (mb)')
     parser.add_argument('--ntop', type=int, default=100,
                         help='num of top elements to get')
@@ -143,11 +143,12 @@ if __name__ == '__main__':
     q = reduce_counters(parted_dir, args.ntop)
 
     ## print results ##
+    # 小顶堆. 通过 stack 使其降序输出
+    stack = []
+    while not q.empty():
+        stack.append(q.get())
     print('rank\tcount\turl')
     print('====================')
-    idx = 1
-    while not q.empty():
-        item = q.get()
+    for idx, item in enumerate(reversed(stack)):
         print('{}\t{}\t{}'.format(idx, item.cnt, item.url))
-        idx += 1
 
