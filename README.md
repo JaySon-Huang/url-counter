@@ -6,18 +6,7 @@
 
 ## 解决思路
 
-### Spark伪代码
-```scala
-sc.readText("/path/to/input")
-  .map(url => (url, 1))
-  .reduceByKey((lcnt, rcnt) => lcnt + rcnt)
-  .sortBy((url, cnt) => cnt)
-  .zipWithIndex
-  .filter(_._2 < 1000)
-  .save("/path/to/output")
-```
-
-### 通过编程实现
+### 编程实现思路
 
 1. 对 url hash 拆分为互不重叠的小文件
 2. 各个小文件分别统计
