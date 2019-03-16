@@ -21,7 +21,7 @@ sc.readText("/path/to/input")
 
 1. 对 url hash 拆分为互不重叠的小文件
 2. 各个小文件分别统计
-3. 合并选出Top 1000的url
+3. 堆排序合并选出Top 1000的url
 
 ## 问题 && 优化
 
@@ -48,11 +48,23 @@ sc.readText("/path/to/input")
 * 第2步为排序
 采用基于磁盘的归并排序
 
+### IO优化
+最终结果取TopN, 第2步可以在每个分片中取TopN, 再第3步中合并k个分片的TopN。 第2/3步之间的中间结果可以减少大量无关结果的IO
+
+### 增加程序鲁棒性 (TODO)
+在第1步/第2步之间，第2步/第3步之间，都有文件落地存储。可以生成表示任务完成中间阶段的checkpoint文件。  
+如果程序中途crash，再重新运行时，先检查checkpoint文件，如果存在的话，就无需进行重复的计算，直接使用之前的结果
+
 ## 测试数据生成 && 运行
 
 ```bash
 wget http://s3.amazonaws.com/alexa-static/top-1m.csv.zip
 uzip top-1m.csv.zip
+# 提取出URL字段并增加数据倾斜
 python2 conv.py --filename top-1m.csv --out top-1m.url
+# 运行计算程序
+# filename: 待处理的文件
+# split:    拆分小文件的期望大小(单位:MB), 根据内存容量调整
+# ntop:     输出 TopN 的结果
 python2 solve.py --filename top-1m.url --split 2 --ntop 100
 ```

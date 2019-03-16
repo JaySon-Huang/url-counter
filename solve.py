@@ -72,7 +72,7 @@ def part(filename, splited_mb=512, preserve_ori_file=True,
     return dirname
 
 
-def count(fn, counter_type='dict'):
+def count(fn, counter_type='dict', topN=1000):
 
     if not os.path.isdir(fn):
         # hash 取模拆分的文件，URL 互不重叠
@@ -103,10 +103,27 @@ def count(fn, counter_type='dict'):
                 prev_cnt = counter.get(url, 0)
                 counter[url] = prev_cnt + 1
 
+    # 使用堆过滤出此分片中 TopN 的结果, 可以减少冗余结果带来的 IO 代价
+    logging.info('filtering results')
+    q = Queue.PriorityQueue(topN)    
+    for k in counter:
+        url, cnt = k, counter[k]
+        assert(q.qsize() <= q.maxsize)
+        if q.qsize() == q.maxsize:
+            # 弹出最小的元素, 对比, 压较大的元素入堆
+            cur_min = q.get()
+            if cur_min.cnt < cnt:
+                q.put(Item(url, cnt))
+            else:
+                q.put(cur_min)
+        else:
+            # 未满, 入堆
+            q.put(Item(url, cnt))
     logging.info('dump counting into file...')
     with open(fn + '_cnt', 'wb') as outfile:
-        for k in counter:
-            print('{},{}'.format(k, counter[k]), file=outfile)
+        while not q.empty():
+            item = q.get()
+            print('{},{}'.format(item.url, item.cnt), file=outfile)
     logging.info('dump done')
 
 
@@ -179,9 +196,9 @@ if __name__ == '__main__':
 
     for _fn in os.listdir(parted_dir):
         fn = os.path.join(parted_dir, _fn)
-        count(fn)
+        count(fn, topN=args.ntop)
     
-    q = reduce_counters(parted_dir, args.ntop)
+    q = reduce_counters(parted_dir, topN=args.ntop)
 
     ## print results ##
     # 小顶堆. 通过 stack 使其降序输出
