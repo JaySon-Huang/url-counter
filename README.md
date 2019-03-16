@@ -51,6 +51,17 @@ sc.readText("/path/to/input")
 ### IO优化
 最终结果取TopN, 第2步可以在每个分片中取TopN, 再第3步中合并k个分片的TopN。 第2/3步之间的中间结果可以减少大量无关结果的IO
 
+#### 效果
+在示例数据上减少 99.8% 的中间结果
+```
+第2步保存所有结果
+> ls -l top-1m.url-parted/part-*_cnt | awk '{sum+=$5}END{print sum}'
+18005891 (bytes)
+第2步每个分片只保留TopN
+> ls -l top-1m.url-parted/part-*_cnt | awk '{sum+=$5}END{print sum}'
+36170 (bytes)
+```
+
 ### 增加程序鲁棒性 (TODO)
 在第1步/第2步之间，第2步/第3步之间，都有文件落地存储。可以生成表示任务完成中间阶段的checkpoint文件。  
 如果程序中途crash，再重新运行时，先检查checkpoint文件，如果存在的话，就无需进行重复的计算，直接使用之前的结果
