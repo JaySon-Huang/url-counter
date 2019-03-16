@@ -11,7 +11,8 @@ def conv(filename, outfile):
         for lineno, line in enumerate(infile):
             _, url = line.strip().split(',')  # 提取出 url
             if lineno < 10:
-                num_repeat = (1 << (16 - lineno))
+                # 生成 skew keys
+                num_repeat = (1 << (20 - lineno))
                 for _ in range(num_repeat):
                     print(url, file=outfile)
             else:

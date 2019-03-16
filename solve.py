@@ -8,18 +8,20 @@ import sys
 import shutil
 import math
 import Queue
+import logging
 
 # pip install mmh3
 import mmh3
 # pip install pygtrie
 import pygtrie as trie
 
+
 def part(filename, splited_mb=512):
     # 计算拆分为多少份
     split_bytes = splited_mb * (1024 * 1024)
     file_size_to_split = os.path.getsize(filename)
     num_to_split = int(math.ceil(1.0 * file_size_to_split / split_bytes))
-    print('`{}`({}) going to split into {} parts, expect {:.1f}mb'.format(
+    logging.info('`{}`({}) going to split into {} parts, expect {:.1f}mb'.format(
         filename, file_size_to_split, num_to_split, splited_mb
     ))
 
@@ -43,7 +45,7 @@ def part(filename, splited_mb=512):
             h = mmh3.hash(line) % num_to_split
             print(line, file=outfiles[h])
             outfiles_size[h] += line_len
-    map(lambda x: x.close(), outfiles)
+    map(lambda x: x.close(), outfiles)  # 关闭文件句柄
 
     # 检查 outfiles_size 过滤出比预期大的文件 split_bytes
     skew_files = filter(
@@ -52,7 +54,7 @@ def part(filename, splited_mb=512):
     )
     if len(skew_files) > 0:
         # TODO 对数据倾斜的部分进一步拆分
-        print('warning skew files: {}', skew_files)
+        logging.warning('skew files: {}'.format(skew_files))
         pass
 
     return dirname
@@ -64,21 +66,21 @@ def count(filename, counter_type='dict'):
     elif counter_type == 'trie':
         counter = trie.CharTrie()
     else:
-        assert(False, 'error counter type')
-    print('counting `{}` using type: {}'.format(filename, counter_type))
+        raise NotImplementedError('invalid counter type: {}'.format(counter_type))
+    logging.info('counting `{}` using type: {}'.format(filename, counter_type))
     with open(filename, 'r') as infile:
         for lineno, line in enumerate(infile):
             if lineno % 50000 == 0:
-                print('processing {} line'.format(lineno))
+                logging.debug('processing {} line'.format(lineno))
             url = line.strip()
             # 更新计数
             prev_cnt = counter.get(url, 0)
             counter[url] = prev_cnt + 1
-    print('dump counting into file...')
+    logging.info('dump counting into file...')
     with open(filename + '_cnt', 'wb') as outfile:
         for k in counter:
             print('{},{}'.format(k, counter[k]), file=outfile)
-    print('dump done')
+    logging.info('dump done')
 
 
 class Item(object):
@@ -102,7 +104,7 @@ def reduce_counters(dirname, topN=1000):
         fn = os.path.join(dirname, _fn)
         if not fn.endswith('_cnt'):
             continue
-        print('itering file: `{}`'.format(fn))
+        logging.info('itering file: `{}`'.format(fn))
         with open(fn, 'r') as infile:
             for line in infile:
                 url, cnt = line.strip().split(',')
@@ -132,6 +134,8 @@ if __name__ == '__main__':
     parser.add_argument('--ntop', type=int, default=100,
                         help='num of top elements to get')
     args = parser.parse_args()
+    
+    #logging.basicConfig(level=logging.DEBUG)
 
     ## main ##
     parted_dir = part(args.filename, args.split)
