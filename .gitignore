@@ -104,3 +104,6 @@ venv.bak/
 .mypy_cache/
 
 top-1m*
+
+.idea
+cmake-build-*
