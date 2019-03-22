@@ -1,0 +1,9 @@
+[package]
+name = "url-counter-rs"
+version = "0.1.0"
+authors = ["jayzonhuang <jayzonhuang@tencent.com>"]
+edition = "2018"
+
+[dependencies]
+rand = "0.6"
+fasthash = "0.4"
