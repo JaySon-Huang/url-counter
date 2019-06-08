@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::path::Path;
 use std::hash::Hasher;
 use std::collections::{HashMap, BinaryHeap};
 use std::cmp::Ordering;
@@ -13,7 +14,7 @@ use rand::prelude::*;
 use fasthash::{murmur3::Hasher32, FastHasher};
 
 fn part(filename: &str, splited_mb: u64,
-        preserve_ori_file: bool,
+        _preserve_ori_file: bool,
         is_skew_add_prefix: bool,
         skew_splited_factor: u8) -> Result<String, io::Error> {
     assert!(skew_splited_factor <= 26);
@@ -28,7 +29,7 @@ fn part(filename: &str, splited_mb: u64,
               filename, file_size_to_split, num_to_split, splited_mb);
 
     let dirname = format!("{}-parted", filename);
-    if fs::metadata(&dirname)?.is_dir() {
+    if Path::new(&dirname).is_dir() {
         fs::remove_dir_all(&dirname)?;
     }
     fs::create_dir(&dirname)?;
@@ -66,7 +67,7 @@ fn part(filename: &str, splited_mb: u64,
             (hasher.finish() % num_to_split) as usize
         };
         let mut fp = &outfiles[h];
-        fp.write(line.as_bytes())?;
+        fp.write_fmt(format_args!("{}\n", line));
         outfiles_size[h] += line.len();
     }
 
@@ -101,13 +102,11 @@ fn count(filename: &str, ntop: u64) -> Result<(), io::Error> {
     let mut counter = HashMap::new();
     for filename in filenames {
         let infile = BufReader::new(File::open(filename)?);
-        for (lineno, line) in infile.lines().enumerate() {
-            let line = match line {
-                Ok(line) => line.trim().to_string(),
-                Err(_e) => continue
-            };
-            let prev_cnt = counter.get(&line).unwrap_or(&0);
-            counter[&line] = prev_cnt + 1;
+        for (_lineno, line) in infile.lines().enumerate() {
+            if let Ok(line) = line {
+                let count = counter.entry(line).or_insert(0);
+                *count += 1;
+            }
         }
     }
 
@@ -127,7 +126,8 @@ fn count(filename: &str, ntop: u64) -> Result<(), io::Error> {
 
     println!("file: {}, qsize: {}", filename, heap.len());
 
-    let mut outfile = fs::File::create(filename + "_cnt")?;
+    let filename: String = filename.to_owned() + "_cnt";
+    let mut outfile = fs::File::create(filename)?;
     while !heap.is_empty() {
         let cur_min = heap.pop().unwrap();
         outfile.write_fmt(
@@ -137,15 +137,19 @@ fn count(filename: &str, ntop: u64) -> Result<(), io::Error> {
     Ok(())
 }
 
-fn reduce_counters(dirname: &str, ntop: u64)
+fn reduce_counters(dirname: &str, _ntop: u64)
     -> Result< BinaryHeap<CountItem>, io::Error> {
     let mut heap : BinaryHeap<CountItem> = BinaryHeap::new();
     let paths = fs::read_dir(dirname)?;
     for path in paths {
-        let path = path?.path().to_str()?;
+        //let path = path?.path().to_str()?;
+        let path = match path {
+            Ok(entry) => entry.path().to_str().unwrap().to_owned() ,
+            Err(e) => return Err(e)
+        };
         if !path.ends_with("_cnt") { continue; }
         let infile = BufReader::new(File::open(path)?);
-        for line in infile.lines {
+        for line in infile.lines() {
             let line = match line {
                 Ok(line) => line.trim().to_string(),
                 Err(_e) => continue
